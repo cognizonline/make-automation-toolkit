@@ -73,7 +73,7 @@ for s in scenarios:
 ## Next steps
 
 - [Authentication](authentication.md) — token scopes and zones
-- [Scenarios](scenarios.md) — deploy, configure, run
-- [MCP Integration](mcp-integration.md) — expose scenarios as AI tools
-- [AI Agents](ai-agents.md) — build agents with LLM providers
-- [Data Stores](data-stores.md) — structured key-value storage
+- [MCP Integration](mcp-integration.md) — expose scenarios as AI tools via raw endpoint
+- [MCP Toolboxes](mcp-toolboxes.md) — governed, audited scenario exposure for production AI clients
+- [AI Agents](ai-agents.md) — scenario-embedded and standalone agent patterns
+- [Best Practices](best-practices.md) — security, performance, data store design

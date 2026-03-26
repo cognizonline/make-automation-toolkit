@@ -47,8 +47,11 @@ as **code** — letting engineers:
 ```
 make-automation-toolkit/
 ├── src/
-│   ├── make_client.py          # MakeClient + MakeDeployer SDK
+│   ├── make_client.py              # MakeClient + MakeDeployer SDK
+│   ├── validate_blueprint.py       # blueprint schema validator
 │   ├── blueprints/
+│   │   ├── schema.json             # JSON Schema for blueprint validation
+│   │   ├── ai_local_agent.json     # scenario-embedded agent template
 │   │   ├── basic_webhook.json
 │   │   ├── ecommerce_order_processing.json
 │   │   └── customer_tracking.json
@@ -57,10 +60,13 @@ make-automation-toolkit/
 │       ├── 02_manage_data_store.py
 │       ├── 03_configure_agent.py
 │       ├── 04_setup_mcp.py
-│       └── 05_full_deployment.py
+│       ├── 05_full_deployment.py
+│       ├── 06_deploy_scenario_agent.py   # scenario-embedded AI agent
+│       ├── 07_builtin_ai_tools.py        # agent using Make built-in AI modules
+│       └── 08_mcp_toolbox_workflow.py    # MCP Toolbox governed tool pattern
 ├── skill/
 │   ├── README.md
-│   └── make-automation-skill.md
+│   └── make-automation-skill.md    # single-file AI context reference
 ├── prompts/
 │   ├── README.md
 │   ├── lead_generation.md
@@ -68,16 +74,21 @@ make-automation-toolkit/
 │   ├── document_processing.md
 │   ├── research_summarisation.md
 │   ├── data_enrichment.md
+│   ├── document_and_media_processing.md  # make-ai-extractors patterns
 │   └── _template.md
 ├── docs/
 │   ├── quickstart.md
 │   ├── authentication.md
 │   ├── mcp-integration.md
+│   ├── mcp-toolboxes.md            # governed MCP access for production
 │   ├── ai-agents.md
 │   └── best-practices.md
+├── tests/
+│   └── test_make_client.py
 ├── assets/
 │   └── make_skills.mp4
 ├── .github/workflows/ci.yml
+├── pyproject.toml
 ├── requirements.txt
 └── README.md
 ```
@@ -216,8 +227,9 @@ See [docs/mcp-integration.md](docs/mcp-integration.md) for the full guide.
 |---|---|
 | [Quick Start](docs/quickstart.md) | Installation, env vars, first run |
 | [Authentication](docs/authentication.md) | Token types, scopes, zones |
-| [MCP Integration](docs/mcp-integration.md) | Expose scenarios as AI tools |
-| [AI Agents](docs/ai-agents.md) | LLM agents, approval modes, output schemas |
+| [MCP Integration](docs/mcp-integration.md) | Expose scenarios as AI tools via raw endpoint |
+| [MCP Toolboxes](docs/mcp-toolboxes.md) | Governed, audited scenario exposure for production AI clients |
+| [AI Agents](docs/ai-agents.md) | LLM agents, built-in AI modules, approval modes, output schemas |
 | [Best Practices](docs/best-practices.md) | Security, performance, monitoring |
 
 ---

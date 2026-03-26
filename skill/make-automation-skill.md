@@ -923,7 +923,7 @@ re-rate-limiting on the next attempt.
 
 ## System prompt templates
 
-Pre-built, annotated system prompts for the five most common agent types are in
+Pre-built, annotated system prompts for the six most common agent types are in
 `prompts/`. Each template includes:
 - Advice explaining *why* each section is structured the way it is
 - The prompt itself with bracketed placeholders
@@ -937,6 +937,7 @@ Pre-built, annotated system prompts for the five most common agent types are in
 | `prompts/document_processing.md` | Extract, validate, route structured doc data |
 | `prompts/research_summarisation.md` | Multi-source research with citations |
 | `prompts/data_enrichment.md` | Fill missing fields without overwriting good data |
+| `prompts/document_and_media_processing.md` | Extract from PDFs, images, and audio using Make's built-in AI extractors |
 | `prompts/_template.md` | Scaffold for new prompts |
 
 See `prompts/README.md` for the full anatomy guide and tuning reference.
@@ -988,10 +989,10 @@ make-automation-toolkit/
 ├── src/
 │   ├── make_client.py              ← MakeClient + MakeDeployer SDK
 │   ├── validate_blueprint.py       ← blueprint schema validator
-│   ├── blueprints/                 ← JSON blueprint templates
-│   └── examples/                   ← runnable Python examples (01–06)
-├── prompts/                        ← system prompt templates with advice
-├── docs/                           ← human-readable topic docs
+│   ├── blueprints/                 ← JSON blueprint templates + schema validator
+│   └── examples/                   ← runnable Python examples (01–08)
+├── prompts/                        ← six system prompt templates with advice
+├── docs/                           ← human-readable topic docs (incl. mcp-toolboxes.md)
 ├── tests/                          ← unit tests (responses-mocked HTTP)
 ├── .github/workflows/ci.yml        ← lint + test + blueprint validation CI
 ├── pyproject.toml                  ← pip install . packaging config
