@@ -2,6 +2,18 @@
 
 All notable changes to this project follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [1.2.0] — 2026-03-26
+
+### Added
+- `prompts/document_and_media_processing.md` — new prompt template for document, image, and audio extraction using Make's built-in AI extractors (`make-ai-extractors`)
+- `skill/make-automation-skill.md` — new "Make built-in AI modules" section covering `make-ai-web-search`, `make-ai-extractors` (all 11 modules with JSON examples), and `ai-tools` v2
+- Module reference with credit costs, parameter tables, and usage guidance for all extraction modules
+
+### Changed
+- `prompts/README.md` — added `document_and_media_processing.md` to template index
+
+---
+
 ## [1.1.0] — 2026-03-26
 
 ### Added

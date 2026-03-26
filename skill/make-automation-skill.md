@@ -461,6 +461,177 @@ scenario_id = deployer.deploy_mcp_tool(blueprint, inputs, outputs, activate=True
 
 ---
 
+## Make built-in AI modules
+
+Make provides three families of built-in AI apps that require **no external connection
+or API key**. They are privacy-focused, beta, and available to all Make plans.
+
+| App | Connection required | Best for |
+|---|---|---|
+| `make-ai-web-search` | None | Live web search with JSON output |
+| `make-ai-extractors` | None | Document, image, and audio extraction |
+| `ai-tools` v2 | Make AI Provider (free) or custom OpenAI/Anthropic | Text analysis, translation, summarisation |
+
+---
+
+### `make-ai-web-search` — Web search with structured output
+
+Single module: `generateAResponse`
+
+Performs a live web search and returns a natural-language answer, optionally as
+structured JSON. Location-aware: pass city, country, region, and timezone to get
+geographically relevant results.
+
+**Credit cost:** 1 credit per 900 tokens + 1 operation credit
+
+**Example — web search in an agent tool:**
+```json
+{
+  "name": "search_web",
+  "type": "builtin",
+  "connection": null,
+  "module": "make-ai-web-search:generateAResponse",
+  "parameters": {
+    "query": "{{agent.input.search_query}}",
+    "parseJson": true,
+    "city": "Cape Town",
+    "country": "ZA",
+    "timezone": "Africa/Johannesburg"
+  }
+}
+```
+
+**Key parameters:**
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `query` | string | The search question or instruction |
+| `parseJson` | boolean | Parse the response as JSON (default false) |
+| `city` | string | Optional — improves local result relevance |
+| `country` | string | ISO 3166-1 alpha-2 code |
+| `region` | string | State/province |
+| `timezone` | string | IANA timezone (e.g. `Europe/London`) |
+
+**When to use over HTTP search API calls:**
+- No external API key — privacy-preserving, works on all plans
+- The model synthesises results into a single answer (not raw snippets)
+- Location-aware results without building custom query strings
+
+---
+
+### `make-ai-extractors` — Document, image, and audio extraction
+
+No connection required. All modules are privacy-focused.
+
+#### Document modules
+
+| Module | Input | Output | Credits |
+|---|---|---|---|
+| `extractADocument` | PDF, DOCX, XLSX, PPTX, HTML, images (up to 2000 pages / 500 MB) | Custom JSON via prompt | 10/page |
+| `extractInvoice` | PDF, DOCX, images | Fixed invoice schema | 10/op |
+| `extractReceipt` | PDF, DOCX, images | Fixed receipt schema | 10/op |
+
+**`extractInvoice` output schema:**
+`invoiceNumber`, `invoiceDate`, `dueDate`, `vendorName`, `vendorAddress`, `buyerName`,
+`buyerAddress`, `lineItems[]`, `subtotal`, `taxRate`, `taxAmount`, `total`, `currency`
+
+**`extractADocument` example with custom prompt:**
+```json
+{
+  "module": "make-ai-extractors:extractADocument",
+  "parameters": {
+    "file": "{{download.data}}",
+    "filename": "{{download.name}}",
+    "prompt": "Extract: company name, contract start date, contract end date, total value, and payment terms. Return as JSON.",
+    "parseJson": true
+  }
+}
+```
+
+#### Image modules
+
+| Module | Purpose | Credits |
+|---|---|---|
+| `generateCaption` | One-sentence image caption | 2/op |
+| `generateCaptionsAdvanced` | Detailed caption for accessibility/alt-text | 2/op |
+| `describeImage` | Custom-prompted description (has `temperature` param) | 2/op |
+| `extractTextFromAnImage` | OCR — returns all text visible in the image | 2/op |
+| `generateImageTags` | Returns keyword tags for search/categorisation | 2/op |
+| `detectObjects` | Returns list of objects detected in the image | 2/op |
+
+**`describeImage` example (damage assessment):**
+```json
+{
+  "module": "make-ai-extractors:describeImage",
+  "parameters": {
+    "file": "{{photo.data}}",
+    "filename": "damage.jpg",
+    "prompt": "Describe visible damage: affected area, severity (minor/moderate/severe), and any part numbers visible.",
+    "temperature": 0.2
+  }
+}
+```
+
+#### Speech modules
+
+| Module | Output | Credits | Limits |
+|---|---|---|---|
+| `transcribeAudio` | Transcript in original language; optional speaker diarization | 20/min | 2 hrs / 300 MB |
+| `translateAudio` | English-only transcript | 20/min | 25 MB |
+
+**`transcribeAudio` example with diarization:**
+```json
+{
+  "module": "make-ai-extractors:transcribeAudio",
+  "parameters": {
+    "file": "{{call_recording.data}}",
+    "filename": "support-call.mp3",
+    "language": "en",
+    "diarization": true
+  }
+}
+```
+
+---
+
+### `ai-tools` v2 — Text analysis toolkit
+
+**Connection required:** Make AI Provider (free on all plans) or custom OpenAI / Anthropic
+key (paid plans only).
+
+| Module | Purpose |
+|---|---|
+| Simple Text Prompt | General-purpose LLM call |
+| Extract information from text | Structured extraction from plain text |
+| Categorize text | Assign to one or more categories |
+| Translate text | Translate to any target language |
+| Identify language | Detect source language |
+| Summarize text | Condensed summary |
+| Analyze sentiment | Positive / negative / neutral + score |
+| Standardize text | Normalise formatting, casing, whitespace |
+| Chunk text | Split long text into token-limited segments |
+
+**Primary use in agent architectures:**
+Use `ai-tools` modules as **pre-processing tools** before the agent's main LLM step —
+e.g. translate an inbound support ticket to English before the agent reads it, or
+chunk a long document before passing it to `extractADocument`.
+
+---
+
+### Choosing the right built-in AI module
+
+| Task | Module | Reason |
+|---|---|---|
+| Web search in an agent tool | `make-ai-web-search:generateAResponse` | Single step, no API key, JSON output |
+| Extract fields from a PDF | `make-ai-extractors:extractADocument` | Handles any document format with custom prompt |
+| Process inbound invoices | `make-ai-extractors:extractInvoice` | Fixed schema, most reliable for invoices |
+| Transcribe a support call | `make-ai-extractors:transcribeAudio` | Diarization support, 2-hour limit |
+| Detect language of a message | `ai-tools:IdentifyLanguage` | Lightweight, requires Make AI Provider connection |
+| Summarise a long article | `ai-tools:SummarizeText` | Token-efficient, handles chunking |
+| Read text in a photo | `make-ai-extractors:extractTextFromAnImage` | OCR, 2 credits, no prompt needed |
+| Tag product images | `make-ai-extractors:generateImageTags` | Returns structured tag list for search |
+
+
 ## Data store management
 
 ### Full setup

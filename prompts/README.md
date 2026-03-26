@@ -51,6 +51,7 @@ regularly hit the limit mid-task, leaving partial work in an inconsistent state.
 | [document_processing.md](document_processing.md) | Extract, validate, and route structured data from documents | `large` |
 | [research_summarisation.md](research_summarisation.md) | Research a topic across sources and produce a structured summary | `large` |
 | [data_enrichment.md](data_enrichment.md) | Fill gaps in existing records using external lookups | `medium` |
+| [document_and_media_processing.md](document_and_media_processing.md) | Extract data from PDFs, images, and audio using Make's built-in AI extractors | `large` |
 | [_template.md](_template.md) | Scaffold for writing your own prompt | — |
 
 ---
