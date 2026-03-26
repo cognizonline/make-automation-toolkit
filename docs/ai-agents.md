@@ -72,17 +72,19 @@ deployer = MakeDeployer(client)
 
 tools = [
     {
-        "name": "web_search",
-        "description": "Search the web for current information. Returns titles, URLs, snippets.",
+        "name": "search_web",
+        # make-ai-web-search requires no external connection or API key.
+        # It performs a live web search and returns a synthesised answer.
+        # Credit cost: 1 credit per 900 tokens + 1 operation credit.
+        "description": "Search the web for current information. Returns a synthesised answer.",
         "flow": [
             {
                 "id": 10,
-                "module": "http:ActionSendData",
-                "version": 3,
+                "module": "make-ai-web-search:generateAResponse",
+                "version": 1,
                 "mapper": {
-                    "url": "https://api.example.com/search",
-                    "method": "GET",
-                    "qs": [{"key": "q", "value": "{{parameters.query}}"}],
+                    "query": "{{parameters.query}}",
+                    "parseJson": False,
                 },
                 "parameters": {},
                 "metadata": {"designer": {"x": 0, "y": 0}},
@@ -234,9 +236,151 @@ yourself; the MCP server does not validate or interpret it.
 
 ---
 
+## 6. Make built-in AI modules as agent tools
+
+Make provides built-in AI modules that work inside a tool `flow[]` with **no
+external connection or API key**.  They are the recommended default for web
+search and document/media extraction in agent tools.
+
+### `make-ai-web-search:generateAResponse`
+
+```python
+{
+    "name": "search_web",
+    "description": "Search the web for current information on a topic.",
+    "flow": [
+        {
+            "id": 10,
+            "module": "make-ai-web-search:generateAResponse",
+            "version": 1,
+            "mapper": {
+                "query": "{{parameters.query}}",
+                "parseJson": False,     # set True to get a structured JSON response
+                # Optional location parameters for geo-relevant results:
+                # "city": "London", "country": "GB", "timezone": "Europe/London",
+            },
+            "parameters": {},
+            "metadata": {"designer": {"x": 0, "y": 0}},
+        }
+    ],
+}
+```
+
+**Credit cost:** 1 credit per 900 tokens + 1 operation credit
+
+### `make-ai-extractors:extractInvoice`
+
+```python
+{
+    "name": "extract_invoice",
+    "description": "Extract structured fields from an invoice file (PDF, DOCX, or image).",
+    "flow": [
+        # Step 1 — download the file
+        {
+            "id": 10,
+            "module": "http:ActionGetFile",
+            "version": 3,
+            "mapper": {"url": "{{parameters.file_url}}"},
+            "parameters": {},
+            "metadata": {"designer": {"x": 0, "y": 0}},
+        },
+        # Step 2 — extract with the built-in extractor (no connection needed)
+        {
+            "id": 20,
+            "module": "make-ai-extractors:extractInvoice",
+            "version": 1,
+            "mapper": {
+                "file": "{{10.data}}",
+                "filename": "{{parameters.filename}}",
+            },
+            "parameters": {},
+            "metadata": {"designer": {"x": 0, "y": 150}},
+        },
+    ],
+}
+```
+
+**Returns:** `invoiceNumber`, `invoiceDate`, `dueDate`, `vendorName`, `lineItems[]`,
+`subtotal`, `taxAmount`, `total`, `currency`
+
+**Credit cost:** 10 credits per operation
+
+### `make-ai-extractors:extractADocument`
+
+For general documents (contracts, reports, forms) where you define the fields:
+
+```python
+{
+    "id": 20,
+    "module": "make-ai-extractors:extractADocument",
+    "version": 1,
+    "mapper": {
+        "file": "{{10.data}}",
+        "filename": "{{parameters.filename}}",
+        "prompt": "Extract: party names, effective date, termination date, and total contract value. Return as JSON.",
+        "parseJson": True,
+    },
+    "parameters": {},
+    "metadata": {"designer": {"x": 0, "y": 150}},
+}
+```
+
+**Credit cost:** 10 credits per page (up to 2000 pages / 500 MB)
+
+### `make-ai-extractors:transcribeAudio`
+
+```python
+{
+    "name": "transcribe_call",
+    "description": "Transcribe an audio recording. Returns transcript with optional speaker labels.",
+    "flow": [
+        {
+            "id": 10,
+            "module": "http:ActionGetFile",
+            "version": 3,
+            "mapper": {"url": "{{parameters.audio_url}}"},
+            "parameters": {},
+            "metadata": {"designer": {"x": 0, "y": 0}},
+        },
+        {
+            "id": 20,
+            "module": "make-ai-extractors:transcribeAudio",
+            "version": 1,
+            "mapper": {
+                "file": "{{10.data}}",
+                "filename": "{{parameters.filename}}",
+                "language": "{{parameters.language}}",
+                "diarization": True,   # set False for single-speaker content
+            },
+            "parameters": {},
+            "metadata": {"designer": {"x": 0, "y": 150}},
+        },
+    ],
+}
+```
+
+**Credit cost:** 20 credits per minute of audio (up to 2 hrs / 300 MB)
+
+### Built-in module quick reference
+
+| Task | Module | Credits | Notes |
+|---|---|---|---|
+| Web search | `make-ai-web-search:generateAResponse` | ~1/search | No API key; `parseJson` for structured output |
+| Invoice extraction | `make-ai-extractors:extractInvoice` | 10/op | Fixed schema; best for known invoice formats |
+| General document | `make-ai-extractors:extractADocument` | 10/page | Custom prompt; `parseJson: true` recommended |
+| Image description | `make-ai-extractors:describeImage` | 2/op | Has `temperature` param; use low (0.1–0.3) for facts |
+| OCR | `make-ai-extractors:extractTextFromAnImage` | 2/op | Returns raw text; no prompt needed |
+| Image tags | `make-ai-extractors:generateImageTags` | 2/op | Structured tag list for search/categorisation |
+| Audio transcription | `make-ai-extractors:transcribeAudio` | 20/min | `diarization: true` for speaker attribution |
+| Audio → English | `make-ai-extractors:translateAudio` | 20/min | Max 25 MB; always outputs English |
+
+---
+
 ## See also
 
 - [`src/examples/03_configure_agent.py`](../src/examples/03_configure_agent.py) — standalone agent example
-- [`src/examples/06_deploy_scenario_agent.py`](../src/examples/06_deploy_scenario_agent.py) — scenario-embedded agent example
+- [`src/examples/06_deploy_scenario_agent.py`](../src/examples/06_deploy_scenario_agent.py) — scenario-embedded agent with placeholder tools
+- [`src/examples/07_builtin_ai_tools.py`](../src/examples/07_builtin_ai_tools.py) — agent using Make built-in AI modules (no API keys)
 - [`src/blueprints/ai_local_agent.json`](../src/blueprints/ai_local_agent.json) — blueprint template
 - [MCP Integration](mcp-integration.md)
+- [Prompt Templates](../prompts/README.md) — includes `document_and_media_processing.md` for extractor-based agents

@@ -11,6 +11,8 @@ All notable changes to this project follow [Keep a Changelog](https://keepachang
 
 ### Changed
 - `prompts/README.md` — added `document_and_media_processing.md` to template index
+- `docs/ai-agents.md` — updated `web_search` tool example to use `make-ai-web-search:generateAResponse`; added section 6 "Make built-in AI modules as agent tools" with copy-paste `flow[]` examples for web search, invoice extraction, document extraction, and audio transcription; updated See also
+- `src/examples/07_builtin_ai_tools.py` — new runnable example: accounts payable agent using `make-ai-web-search` + `make-ai-extractors:extractInvoice` + `datastore:AddRecord`
 
 ---
 
