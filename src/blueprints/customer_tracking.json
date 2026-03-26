@@ -1,0 +1,57 @@
+{
+  "name": "Customer Tracking Automation",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebhook",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    },
+    {
+      "id": 2,
+      "module": "datastore:ActionSearchRecords",
+      "version": 1,
+      "mapper": {
+        "datastore": "{{DATASTORE_ID}}",
+        "filter": {
+          "key": "customer_id",
+          "operator": "equal",
+          "value": "{{1.customer_id}}"
+        },
+        "limit": 1
+      },
+      "metadata": { "designer": { "x": 300, "y": 0 } }
+    },
+    {
+      "id": 3,
+      "module": "datastore:ActionAddRecord",
+      "version": 1,
+      "mapper": {
+        "datastore": "{{DATASTORE_ID}}",
+        "key": "{{1.customer_id}}",
+        "data": {
+          "customer_id": "{{1.customer_id}}",
+          "email": "{{1.email}}",
+          "last_interaction": "{{now}}",
+          "interaction_count": "{{add(2.data.interaction_count, 1)}}"
+        }
+      },
+      "metadata": { "designer": { "x": 600, "y": 0 } }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false
+    }
+  }
+}

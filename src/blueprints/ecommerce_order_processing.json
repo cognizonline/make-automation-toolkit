@@ -1,0 +1,101 @@
+{
+  "name": "E-commerce Order Processing",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebhook",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": { "designer": { "x": 300, "y": 0 } },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 3,
+              "module": "json:ParseJSON",
+              "version": 1,
+              "mapper": { "json": "{{1.order_data}}" },
+              "metadata": { "designer": { "x": 600, "y": -100 } }
+            }
+          ],
+          "filter": {
+            "name": "Standard Orders",
+            "conditions": [
+              [{ "a": "{{1.order_type}}", "b": "standard", "o": "text:equal" }]
+            ]
+          }
+        },
+        {
+          "flow": [
+            {
+              "id": 4,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "mapper": {
+                "url": "https://priority-api.example.com/orders",
+                "method": "POST",
+                "bodyType": "raw",
+                "contentType": "application/json",
+                "body": "{{toJSON(1)}}"
+              },
+              "metadata": { "designer": { "x": 600, "y": 100 } }
+            }
+          ],
+          "filter": {
+            "name": "Priority Orders",
+            "conditions": [
+              [{ "a": "{{1.order_type}}", "b": "priority", "o": "text:equal" }]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "module": "builtin:ErrorHandler",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": { "designer": { "x": 600, "y": 200 } },
+      "handlers": [
+        {
+          "flow": [
+            {
+              "id": 6,
+              "module": "slack:ActionPostMessage",
+              "version": 1,
+              "mapper": {
+                "channel": "errors",
+                "text": "Order processing failed: {{5.error.message}}"
+              },
+              "metadata": { "designer": { "x": 900, "y": 200 } }
+            }
+          ],
+          "errorType": "*"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false
+    }
+  }
+}
