@@ -58,6 +58,9 @@ make-automation-toolkit/
 │       ├── 03_configure_agent.py
 │       ├── 04_setup_mcp.py
 │       └── 05_full_deployment.py
+├── skill/
+│   ├── README.md
+│   └── make-automation-skill.md
 ├── prompts/
 │   ├── README.md
 │   ├── lead_generation.md
