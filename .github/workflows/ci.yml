@@ -33,16 +33,32 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest tests/ -v --cov=src --cov-report=xml || true
+          pytest tests/ -v --cov=src --cov-report=xml --cov-fail-under=60
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+        continue-on-error: true
 
   validate-blueprints:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate JSON blueprints
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install jsonschema
+
+      - name: Validate blueprints against schema
         run: |
           for f in src/blueprints/*.json; do
+            [ "$f" = "src/blueprints/schema.json" ] && continue
+            [ "$f" = "src/blueprints/ai_local_agent.json" ] && continue
             echo "Validating $f"
-            python -c "import json; json.load(open('$f'))" && echo "  OK"
+            python src/validate_blueprint.py "$f" && echo "  OK"
           done

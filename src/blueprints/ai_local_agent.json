@@ -1,0 +1,79 @@
+{
+  "_note": "Template for the scenario-embedded AI Agent pattern (ai-local-agent:RunLocalAIAgent). This blueprint uses a tools[] array nested inside the module — a structure not covered by schema.json (which validates standard linear blueprints). Excluded from CI schema validation intentionally.",
+  "name": "AI Agent — Research and Notify",
+  "flow": [
+    {
+      "id": 1,
+      "module": "ai-local-agent:RunLocalAIAgent",
+      "version": 0,
+      "tools": [
+        {
+          "name": "web_search",
+          "description": "Search the web for current information on a topic. Returns a list of results with titles, URLs, and snippets.",
+          "flow": [
+            {
+              "id": 10,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "mapper": {
+                "url": "https://api.example.com/search",
+                "method": "GET",
+                "qs": [
+                  { "key": "q", "value": "{{parameters.query}}" },
+                  { "key": "limit", "value": "5" }
+                ],
+                "headers": [],
+                "bodyType": "raw",
+                "contentType": "application/json"
+              },
+              "parameters": {},
+              "metadata": { "designer": { "x": 0, "y": 0 } }
+            }
+          ]
+        },
+        {
+          "name": "send_email",
+          "description": "Send an email notification with a subject and body to a specified recipient.",
+          "flow": [
+            {
+              "id": 20,
+              "module": "gmail:ActionSendEmail",
+              "version": 1,
+              "mapper": {
+                "connectionId": 0,
+                "to": "{{parameters.to}}",
+                "subject": "{{parameters.subject}}",
+                "content": "{{parameters.body}}",
+                "contentType": "text/plain"
+              },
+              "parameters": { "accountId": 0 },
+              "metadata": { "designer": { "x": 0, "y": 150 } }
+            }
+          ]
+        }
+      ],
+      "mapper": {
+        "message": "{{1.input}}",
+        "files": [],
+        "timeout": "",
+        "threadId": "",
+        "outputType": "text",
+        "modelConfig": {
+          "recursionLimit": 50,
+          "iterationsFromHistoryCount": "10"
+        },
+        "defaultModel": "large",
+        "systemPrompt": "You are a research assistant. When asked a question, use the web_search tool to find current information, then summarise the findings and send them via send_email if the user requests it.",
+        "reasoningEffort": "low"
+      },
+      "parameters": {},
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": { "orphans": [] },
+    "scenario": { "slots": null, "autoCommit": true }
+  }
+}

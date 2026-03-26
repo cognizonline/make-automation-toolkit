@@ -1,22 +1,157 @@
-# Make AI Agents (Beta)
+# Make AI Agents
 
-Make AI Agents are LLM-powered agents that can autonomously call your Make
-scenarios as tools in response to natural-language prompts.
+This document covers both ways to deploy AI Agents in Make.com, how to choose
+between them, and the limits of what the Make MCP toolset can do.
 
-## Architecture
+---
+
+## 1. Two agent deployment patterns
+
+### Old pattern — linear scenario chain
+
+Before AI Agents existed, "automation" meant a sequence of discrete modules
+wired together in a fixed order:
 
 ```
-User message
-    │
-    ▼
-AI Agent (LLM + system prompt)
-    │
-    ├──▶ Scenario A (auto-run)
-    ├──▶ Scenario B (manual approval)
-    └──▶ Response to user
+Trigger → Module A → Module B → Module C → Output
 ```
 
-## Create an agent
+Execution is deterministic: every run follows the same path.  There is no
+reasoning layer — the scenario cannot decide to skip a step or repeat one based
+on intermediate output.  This pattern is still correct for simple, predictable
+workflows.
+
+### New pattern — scenario-embedded agent (`ai-local-agent:RunLocalAIAgent`)
+
+The entire scenario is a **single module**: `ai-local-agent:RunLocalAIAgent`.
+Tools (each with their own `flow[]` of real Make modules) are nested **inside**
+that one module.  At runtime, the LLM receives the input message and your
+system prompt, then decides which tools to call, in what order, and how many
+times — all within a single scenario execution.
+
+```
+Scenario
+  └─ ai-local-agent:RunLocalAIAgent   ← one module, owns the execution loop
+       ├─ tool: web_search             ← has its own flow[] of Make modules
+       ├─ tool: write_to_datastore
+       └─ tool: send_email
+```
+
+Key differences from the old pattern:
+
+| | Old linear chain | Scenario-embedded agent |
+|---|---|---|
+| Execution order | Fixed at design time | LLM decides at runtime |
+| Branching | Filters/routers only | Arbitrary tool re-use and chaining |
+| LLM involvement | None (unless you add an AI module manually) | Built-in — the whole module IS the LLM loop |
+| Scenario complexity | N modules visible in designer | 1 module visible; tools are nested |
+
+### Standalone AI Agent (REST API)
+
+A separate entity created via `POST /api/v2/ai-agents/v1/agents`.  It has its
+own LLM config, system prompt, and a list of Make scenarios as callable tools.
+You interact with it via `POST /ai-agents/v1/agents/{id}/run`.  It can be
+surfaced via the Make MCP Server if configured.
+
+---
+
+## 2. Scenario-embedded agent — `deploy_scenario_agent()`
+
+Use `MakeDeployer.deploy_scenario_agent()` to create a scenario whose sole
+module is `ai-local-agent:RunLocalAIAgent`.
+
+```python
+from make_client import MakeClient, MakeDeployer
+
+client = MakeClient(
+    api_token="YOUR_TOKEN",
+    zone="eu1.make.com",
+    team_id=123,
+)
+deployer = MakeDeployer(client)
+
+tools = [
+    {
+        "name": "web_search",
+        "description": "Search the web for current information. Returns titles, URLs, snippets.",
+        "flow": [
+            {
+                "id": 10,
+                "module": "http:ActionSendData",
+                "version": 3,
+                "mapper": {
+                    "url": "https://api.example.com/search",
+                    "method": "GET",
+                    "qs": [{"key": "q", "value": "{{parameters.query}}"}],
+                },
+                "parameters": {},
+                "metadata": {"designer": {"x": 0, "y": 0}},
+            }
+        ],
+    },
+    {
+        "name": "send_email",
+        "description": "Send an email notification to a recipient.",
+        "flow": [
+            {
+                "id": 20,
+                "module": "gmail:ActionSendEmail",
+                "version": 1,
+                "mapper": {
+                    "connectionId": 0,          # replace with real connection ID
+                    "to": "{{parameters.to}}",
+                    "subject": "{{parameters.subject}}",
+                    "content": "{{parameters.body}}",
+                },
+                "parameters": {"accountId": 0},  # replace with real account ID
+                "metadata": {"designer": {"x": 0, "y": 150}},
+            }
+        ],
+    },
+]
+
+scenario_id = deployer.deploy_scenario_agent(
+    system_prompt="You are a research assistant. Search for information and email summaries on request.",
+    tools=tools,
+    model="large",           # "large" | "medium" | "small"
+    reasoning_effort="low",  # only valid value currently
+    recursion_limit=50,      # max LLM steps per execution
+    history_count=10,        # conversation turns retained
+    output_type="text",      # "text" | "make-schema"
+)
+print(f"Agent scenario ID: {scenario_id}")
+```
+
+### Tool structure
+
+Each entry in `tools` must have:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Identifier the LLM uses to call the tool |
+| `description` | string | Natural-language description the LLM reads to decide when to call it |
+| `flow` | array | Standard Make module objects (same structure as a scenario `flow[]`) |
+
+### Model sizes
+
+| Value | Approximate equivalent |
+|---|---|
+| `"large"` | Most capable, slowest, highest cost |
+| `"medium"` | Balanced |
+| `"small"` | Fastest, cheapest, less capable |
+
+### See also
+
+- `src/blueprints/ai_local_agent.json` — a schema-valid JSON template showing this pattern with two tools
+- `src/examples/06_deploy_scenario_agent.py` — runnable example
+
+---
+
+## 3. Standalone AI Agent — `deploy_ai_agent_stack()`
+
+Use `MakeDeployer.deploy_ai_agent_stack()` to create a standalone agent entity
+via the REST API.  Each scenario listed in `agent_config["scenarios"]` must
+already exist and be active.
 
 ```python
 agent_config = {
@@ -26,69 +161,82 @@ agent_config = {
     "llmConfig": {
         "maxTokens": 2000,
         "temperature": 0.7,
-        "topP": 1.0
+        "topP": 1.0,
     },
     "invocationConfig": {
         "recursionLimit": 10,
-        "timeout": 60000        # ms
+        "timeout": 60000,       # milliseconds
     },
     "scenarios": [
         {"makeScenarioId": 123, "approvalMode": "auto-run"},
-        {"makeScenarioId": 456, "approvalMode": "manual-approval"}
+        {"makeScenarioId": 456, "approvalMode": "manual-approval"},
     ],
     "historyConfig": {
-        "iterationsFromHistoryCount": 5
+        "iterationsFromHistoryCount": 5,
     },
     "outputParserFormat": {
         "type": "make-schema",
         "schema": [
             {"name": "response",     "type": "text", "label": "Agent Response", "required": True},
-            {"name": "action_taken", "type": "text", "label": "Action Taken",   "required": False}
-        ]
-    }
+            {"name": "action_taken", "type": "text", "label": "Action Taken",   "required": False},
+        ],
+    },
 }
 
-agent_id = client.create_agent(agent_config)
+agent_id = deployer.deploy_ai_agent_stack(agent_config)
 ```
 
-## Run an agent
+### Running the agent
 
 ```python
 result = client.run_agent(
     agent_id=agent_id,
-    messages=[
-        {"role": "user", "content": "Check order #ORD-999 status"}
-    ],
-    thread_id="thread-abc-123"   # pass same ID to continue a conversation
+    messages=[{"role": "user", "content": "Check order #ORD-999 status"}],
+    thread_id="thread-abc-123",   # same ID continues a conversation
 )
 ```
 
-## Configure LLM providers
+---
 
-Teams can have a default AI provider for the mapping assistant and for the
-agent toolkit separately:
+## 4. MCP toolset gap — what the MCP server cannot do
 
-```python
-llm_settings = {
-    "aiMappingAccountId": 123,               # connection ID for OpenAI etc.
-    "aiMappingModelName": "gpt-4o-mini",
-    "aiToolkitAccountId": 456,               # connection ID for Anthropic etc.
-    "aiToolkitModelName": "claude-sonnet-4-6"
-}
-```
+The Make MCP Server exposes tools for scenarios, data stores, hooks, and
+connections.  **It has no endpoint to create or configure AI Agents of either
+type.**
 
-## Best practices
+The tools named `tools_create`, `tools_get`, and `tools_update` in the MCP
+server are for **Make Tools** — single-module wrappers that surface one Make
+module as an MCP-callable function.  They are an entirely different feature
+from AI Agents and cannot be used as a substitute.
 
-| Concern | Guidance |
-|---|---|
-| System prompt | Be specific about capabilities and limitations |
-| Tool selection | Only expose scenarios the agent needs |
-| `recursionLimit` | Set to prevent runaway chains (5–15 typical) |
-| `timeout` | 30–120 s depending on scenario complexity |
-| Sensitive ops | Always use `manual-approval` mode |
-| Structured output | Define `outputParserFormat` for consistent downstream parsing |
+Consequence: `create_agent` and `run_agent` (and `deploy_ai_agent_stack`) can
+**only** be called via the REST API.  There is no MCP path.
+
+Similarly, `deploy_scenario_agent()` calls `create_scenario` under the hood,
+which the MCP server *does* support — but the LLM tooling configuration inside
+`ai-local-agent:RunLocalAIAgent` is blueprint-level detail that you provide
+yourself; the MCP server does not validate or interpret it.
+
+---
+
+## 5. Choosing between patterns
+
+| Concern | Scenario-embedded agent | Standalone AI Agent |
+|---|---|---|
+| How it is deployed | `deploy_scenario_agent()` → `create_scenario` | `deploy_ai_agent_stack()` → REST `POST /ai-agents/v1/agents` |
+| Trigger | Scenario scheduling (webhook, interval, on-demand) | `POST /ai-agents/v1/agents/{id}/run` or MCP Server |
+| Tool definition | Inline `flow[]` inside the scenario blueprint | Existing active scenarios listed by ID |
+| Conversation continuity | `threadId` in the module mapper | `threadId` in the run payload |
+| MCP Server exposure | Not directly (scenario can be used as an MCP tool, but agent config is not surfaced) | Yes, if the team has MCP Server enabled |
+| API access | Create via `POST /scenarios`; run via `POST /scenarios/{id}/run` | Create via `POST /ai-agents/v1/agents`; run via `POST /ai-agents/v1/agents/{id}/run` |
+| Best for | Self-contained agents where tools are new flows built alongside the agent | Agents that orchestrate existing, already-deployed scenarios |
+| Reasoning model config | `defaultModel`, `reasoningEffort`, `recursionLimit` in blueprint | `llmConfig`, `invocationConfig` in agent config |
+
+---
 
 ## See also
 
-- [`src/examples/03_configure_agent.py`](../src/examples/03_configure_agent.py)
+- [`src/examples/03_configure_agent.py`](../src/examples/03_configure_agent.py) — standalone agent example
+- [`src/examples/06_deploy_scenario_agent.py`](../src/examples/06_deploy_scenario_agent.py) — scenario-embedded agent example
+- [`src/blueprints/ai_local_agent.json`](../src/blueprints/ai_local_agent.json) — blueprint template
 - [MCP Integration](mcp-integration.md)

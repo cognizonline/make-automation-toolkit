@@ -7,7 +7,7 @@ Make.com automations via the REST API.
 
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import requests
 from requests.exceptions import RequestException
@@ -44,21 +44,43 @@ class MakeClient:
     # -------------------------------------------------------------------------
 
     def _request(self, method: str, path: str, max_retries: int = 3, **kwargs) -> Dict:
-        """Execute an API request with exponential-backoff retry on 429/5xx."""
+        """Execute an API request with exponential-backoff retry on 429/5xx.
+
+        On 429 responses, reads the ``Retry-After`` header and sleeps for that
+        many seconds when present.  Falls back to ``2 ** attempt`` seconds when
+        the header is absent.
+        """
         url = f"{self.base_url}{path}"
         for attempt in range(max_retries):
             try:
                 resp = self.session.request(method, url, **kwargs)
                 if resp.status_code == 429:
-                    time.sleep(2 ** attempt)
+                    retry_after = resp.headers.get("Retry-After")
+                    delay = int(retry_after) if retry_after is not None else 2 ** attempt
+                    time.sleep(delay)
                     continue
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
-            except RequestException as exc:
+            except RequestException:
                 if attempt == max_retries - 1:
                     raise
                 time.sleep(2 ** attempt)
         raise RuntimeError(f"Max retries exceeded for {url}")
+
+    def paginate(self, path: str, result_key: str, page_size: int = 100, **params) -> Iterator[Dict]:
+        """Yield all items from a paginated list endpoint."""
+        offset = 0
+        while True:
+            page = self._request(
+                "GET",
+                path,
+                params={**params, "pg[limit]": page_size, "pg[offset]": offset},
+            )
+            items = page.get(result_key, [])
+            yield from items
+            if len(items) < page_size:
+                break
+            offset += page_size
 
     # -------------------------------------------------------------------------
     # Scenarios
@@ -127,6 +149,13 @@ class MakeClient:
         if data:
             payload["data"] = data
         return self._request("POST", f"/scenarios/{scenario_id}/run", json=payload)
+
+    def paginate_scenarios(self, folder_id: Optional[int] = None, page_size: int = 100) -> Iterator[Dict]:
+        """Yield every scenario for the team, fetching pages as needed."""
+        extra: Dict[str, Any] = {"teamId": self.team_id}
+        if folder_id:
+            extra["folderId"] = folder_id
+        yield from self.paginate("/scenarios", "scenarios", page_size, **extra)
 
     def set_scenario_interface(self, scenario_id: int, inputs: List[Dict], outputs: List[Dict]) -> None:
         """Define inputs/outputs so the scenario can be used as an MCP tool or AI Agent tool."""
@@ -214,6 +243,10 @@ class MakeClient:
     def list_records(self, store_id: int, limit: int = 100, offset: int = 0) -> List[Dict]:
         params = {"limit": limit, "offset": offset}
         return self._request("GET", f"/data-stores/{store_id}/data", params=params).get("records", [])
+
+    def paginate_records(self, store_id: int, page_size: int = 100) -> Iterator[Dict]:
+        """Yield every record in a data store, fetching pages as needed."""
+        yield from self.paginate(f"/data-stores/{store_id}/data", "records", page_size)
 
     def update_record(self, store_id: int, key: str, data: Dict) -> Dict:
         payload = {"key": key, "data": data}
@@ -370,4 +403,96 @@ class MakeDeployer:
         if activate:
             self.client.activate_scenario(scenario_id)
         print(f"MCP tool deployed → scenario {scenario_id}")
+        return scenario_id
+
+    def deploy_ai_agent_stack(self, agent_config: Dict, activate_tools: bool = True) -> int:
+        """
+        Deploy a standalone AI Agent with its backing scenarios as tools.
+
+        Each scenario listed in agent_config["scenarios"] must already exist
+        and be active before calling this method.  The agent is created via the
+        REST API (``POST /ai-agents/v1/agents``) — the Make MCP toolset has no
+        equivalent endpoint.
+
+        Args:
+            agent_config: Full agent configuration dict (name, systemPrompt,
+                          defaultModel, llmConfig, invocationConfig, scenarios, …).
+            activate_tools: Reserved for future use; currently unused.
+
+        Returns:
+            The newly created agent ID.
+        """
+        agent_id = self.client.create_agent(agent_config)
+        print(f"AI Agent deployed → agent {agent_id}")
+        return agent_id
+
+    def deploy_scenario_agent(
+        self,
+        system_prompt: str,
+        tools: List[Dict],
+        model: str = "large",
+        reasoning_effort: str = "low",
+        recursion_limit: int = 50,
+        history_count: int = 10,
+        output_type: str = "text",
+        scheduling: Optional[Dict] = None,
+    ) -> int:
+        """
+        Deploy a scenario using the ai-local-agent:RunLocalAIAgent module.
+
+        This is the NEW Make AI Agent pattern — the LLM lives INSIDE the
+        scenario as a single module and orchestrates all tools via LLM
+        reasoning at runtime.  Unlike the old linear-chain pattern, the agent
+        decides tool call order itself.
+
+        Args:
+            system_prompt: Agent instructions.
+            tools: List of tool dicts, each with "name", "description", and
+                   "flow" (a list of Make module objects).
+            model: "large", "medium", or "small".
+            reasoning_effort: "low" (only valid value currently).
+            recursion_limit: Max LLM steps per run (default 50).
+            history_count: Conversation turns to retain (default 10).
+            output_type: "text" or "make-schema".
+            scheduling: Scenario scheduling config (defaults to on-demand).
+
+        Returns:
+            Scenario ID.
+        """
+        blueprint = {
+            "name": f"AI Agent — {system_prompt[:40]}...",
+            "flow": [
+                {
+                    "id": 1,
+                    "module": "ai-local-agent:RunLocalAIAgent",
+                    "version": 0,
+                    "tools": tools,
+                    "mapper": {
+                        "message": "{{1.input}}",
+                        "files": [],
+                        "timeout": "",
+                        "threadId": "",
+                        "outputType": output_type,
+                        "modelConfig": {
+                            "recursionLimit": recursion_limit,
+                            "iterationsFromHistoryCount": str(history_count),
+                        },
+                        "defaultModel": model,
+                        "systemPrompt": system_prompt,
+                        "reasoningEffort": reasoning_effort,
+                    },
+                    "parameters": {},
+                    "metadata": {"designer": {"x": 0, "y": 0}},
+                }
+            ],
+            "metadata": {
+                "instant": False,
+                "version": 1,
+                "designer": {"orphans": []},
+                "scenario": {"slots": None, "autoCommit": True},
+            },
+        }
+        sched = scheduling or {"type": "on-demand"}
+        scenario_id = self.client.create_scenario(blueprint, scheduling=sched)
+        print(f"Scenario agent deployed → scenario {scenario_id}")
         return scenario_id
