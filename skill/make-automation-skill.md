@@ -439,6 +439,50 @@ OAuth alternative:
 }
 ```
 
+### MCP Toolboxes — production-grade governed access
+
+The raw MCP endpoint exposes your entire active scenario library. **MCP Toolboxes**
+are team-level curated collections with dedicated server URLs, scoped auth keys,
+per-tool access control, and invocation audit logs.
+
+| | Raw MCP endpoint | MCP Toolbox |
+|---|---|---|
+| Scenarios exposed | All active on-demand | Only those you add |
+| Server URL | Shared team endpoint | **Unique URL per Toolbox** |
+| Auth keys | One team token | **Multiple keys per Toolbox** |
+| Access control | All-or-nothing | **Read-only or read-write per tool** |
+| Audit log | None | **Every invocation logged** |
+
+**Create:** Make sidebar → MCP Toolboxes → Create toolbox → add scenarios → copy unique URL + key
+
+**Connect Claude Code** (`.claude/settings.json`):
+```json
+{
+  "mcpServers": {
+    "make-toolbox": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://<TOOLBOX_URL>/sse"],
+      "env": { "MCP_TOKEN": "<TOOLBOX_KEY>" }
+    }
+  }
+}
+```
+
+**The single-tool wrapping pattern:**
+Instead of exposing each step as a separate tool, wrap the entire workflow in one
+scenario and expose that as one tool. The LLM makes one call; Make runs the full
+deterministic chain internally.
+
+```
+Expose this:  onboard_customer(name, email, company, deal_value)
+Not this:     validate_customer + create_contact + create_deal + send_notification
+```
+
+Generate one key per AI client — revoke individually without affecting others.
+Set read-only for lookup tools; read-write for tools that create, update, or delete.
+
+See full guide: `docs/mcp-toolboxes.md` and `src/examples/08_mcp_toolbox_workflow.py`
+
 ### Make a scenario appear as an MCP tool
 Three requirements, all must be met:
 1. Scheduling: `{"type": "on-demand"}`
@@ -449,15 +493,18 @@ Three requirements, all must be met:
 scenario_id = deployer.deploy_mcp_tool(blueprint, inputs, outputs, activate=True)
 ```
 
-### Make Tools vs AI Agents
+### Make Tools vs AI Agents vs MCP Toolboxes
 
-| | Make Tools | AI Agents |
-|---|---|---|
-| **Created via** | MCP `tools_create` or REST | REST API only |
-| **Structure** | Single module wrapper | LLM + scenario tools |
-| **Called from** | MCP clients, agents, scenarios | API, MCP (standalone), scenario (embedded) |
-| **LLM reasoning** | None | Core feature |
-| **Use case** | Simple callable action | Multi-step autonomous task |
+| | Make Tools | MCP Toolbox tool | AI Agent |
+|---|---|---|---|
+| **Created via** | MCP `tools_create` or REST | Make sidebar + `deploy_mcp_tool()` | REST API only |
+| **Structure** | Single module wrapper | Scenario with defined I/O, in a curated Toolbox | LLM + scenario tools |
+| **Called from** | MCP clients, agents, scenarios | External AI clients via unique Toolbox URL | API, MCP (standalone), scenario (embedded) |
+| **Auth** | Team MCP token | Dedicated Toolbox key (multiple per Toolbox) | API token |
+| **Access control** | None | Read-only or read-write per tool | None |
+| **Audit log** | None | Yes — every invocation logged | None |
+| **LLM reasoning** | None | None (deterministic scenario) | Core feature |
+| **Use case** | Simple callable action | Governed, audited workflow exposed to external AI | Multi-step autonomous task |
 
 ---
 

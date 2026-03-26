@@ -2,6 +2,19 @@
 
 All notable changes to this project follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [1.3.0] — 2026-03-26
+
+### Added
+- `docs/mcp-toolboxes.md` — full guide to MCP Toolboxes: setup, access control, the single-tool wrapping pattern, multi-client key isolation, audit logging, and naming conventions
+- `src/examples/08_mcp_toolbox_workflow.py` — runnable example deploying a 4-step "Onboard Customer" workflow as a single governed MCP Toolbox tool
+- `skill/make-automation-skill.md` — MCP Toolboxes subsection with comparison table, connection config, and single-tool wrapping pattern
+- `docs/mcp-integration.md` — Toolboxes callout section with link to full guide
+
+### Changed
+- `skill/make-automation-skill.md` — expanded "Make Tools vs AI Agents" to three-way comparison including MCP Toolboxes (auth, access control, audit log columns added)
+
+---
+
 ## [1.2.0] — 2026-03-26
 
 ### Added

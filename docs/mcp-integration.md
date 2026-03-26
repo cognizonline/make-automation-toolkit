@@ -117,3 +117,25 @@ call the tool automatically or must ask for approval:
 
 Use `manual-approval` for any scenario that writes data, sends emails, or
 charges money.
+
+---
+
+## MCP Toolboxes — governed access for production
+
+The raw MCP endpoint above exposes your entire active scenario library.
+For production deployments, use **MCP Toolboxes** instead:
+
+- Curate exactly which scenarios are exposed per Toolbox
+- Each Toolbox has its own unique server URL (not the shared team endpoint)
+- Generate multiple auth keys per Toolbox — one per AI client or team
+- Set **read-only** or **read-write** access per tool
+- Every invocation is logged in a centralized audit trail
+
+```
+Raw endpoint:  https://eu1.make.com/mcp/u/TEAM_TOKEN/sse   → all scenarios
+Toolbox URL:   https://<unique>/sse + Toolbox key           → curated subset only
+```
+
+**Create a Toolbox:** Make sidebar → MCP Toolboxes → Create toolbox
+
+See the full guide: [`docs/mcp-toolboxes.md`](mcp-toolboxes.md)
