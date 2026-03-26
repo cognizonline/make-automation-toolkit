@@ -16,7 +16,7 @@ Usage:
     python 05_full_deployment.py
 """
 
-import json
+
 import os
 import sys
 from pathlib import Path
