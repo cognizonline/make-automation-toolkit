@@ -58,6 +58,14 @@ make-automation-toolkit/
 │       ├── 03_configure_agent.py
 │       ├── 04_setup_mcp.py
 │       └── 05_full_deployment.py
+├── prompts/
+│   ├── README.md
+│   ├── lead_generation.md
+│   ├── customer_support.md
+│   ├── document_processing.md
+│   ├── research_summarisation.md
+│   ├── data_enrichment.md
+│   └── _template.md
 ├── docs/
 │   ├── quickstart.md
 │   ├── authentication.md
