@@ -26,8 +26,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Allow running from the repo root without installing the package
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from make_client import MakeClient, MakeDeployer  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from src.make_client import MakeClient, MakeDeployer  # noqa: E402
 
 load_dotenv()
 

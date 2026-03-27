@@ -241,9 +241,32 @@ right one before building.
 | **MCP exposure** | No direct MCP exposure | Yes — if agent is configured for it |
 | **Best for** | Self-contained agentic pipelines | AI assistants calling Make as a tool |
 
-**Rule of thumb:** If the agent is the product, use the scenario-embedded pattern.
-If the agent is a capability inside another product (Claude, Cursor, a chatbot),
-use the standalone pattern.
+**Decision guide — pick one before building:**
+
+```
+Q1: Is the LLM reasoning loop inside Make?
+    YES → scenario-embedded agent (ai-local-agent:RunLocalAIAgent)
+          deploy with: deployer.deploy_scenario_agent()
+          example: src/examples/06_deploy_scenario_agent.py
+
+    NO → the AI client lives outside Make (Claude, Cursor, ChatGPT, etc.)
+
+Q2: Does the external AI need autonomous multi-step reasoning?
+    YES → standalone AI Agent (REST API)
+          deploy with: deployer.deploy_ai_agent_stack()
+          example: src/examples/03_configure_agent.py
+
+    NO → deterministic workflow the AI can trigger
+
+Q3: Is this a production deployment needing access control + audit?
+    YES → MCP Toolbox (governed, scoped, logged)
+          deploy with: deployer.deploy_mcp_tool() → add to Toolbox in Make UI
+          example: src/examples/08_mcp_toolbox_workflow.py
+
+    NO → raw MCP endpoint (development / personal use)
+          deploy with: deployer.deploy_mcp_tool()
+          example: src/examples/04_setup_mcp.py
+```
 
 ---
 
@@ -774,12 +797,16 @@ Common connection type strings: `"google"`, `"google-email"`, `"slack"`, `"airta
 
 ## Organisation & team management
 
+> **Note on `_request()`:** Some operations (org creation, LLM config, analytics)
+> are not yet wrapped in named public methods. Use `client._request(method, path, **kwargs)`
+> directly for these — it gets the same retry/backoff and auth handling as all public methods.
+
 ```python
 org  = client.get_organization(org_id)
 teams = client.list_teams()         # requires org_id set on client
 team  = client.get_team(team_id)
 
-# Create organisation
+# Create organisation (no public method — use _request directly)
 response = client._request("POST", "/organizations", json={
     "name": "My Company",
     "regionId": 1,

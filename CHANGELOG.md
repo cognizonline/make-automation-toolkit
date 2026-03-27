@@ -2,6 +2,16 @@
 
 All notable changes to this project follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [1.3.1] — 2026-03-27
+
+### Fixed
+- `src/examples/06_deploy_scenario_agent.py`, `07_builtin_ai_tools.py`, `08_mcp_toolbox_workflow.py` — broken import pattern (used `parent.parent` + `from make_client import`). Aligned with examples 01–05: `resolve().parents[2]` (absolute repo root) + `from src.make_client import`
+- `.github/workflows/ci.yml` — install now uses `pip install -e ".[dev]"` instead of separate `requirements.txt` + dev tools installs; CI now matches `pyproject.toml` package structure
+- `.github/workflows/ci.yml` — documented why `ai_local_agent.json` and `schema.json` are excluded from blueprint validation
+- `skill/make-automation-skill.md` — expanded AI Agent decision guide to include MCP Toolboxes as a third option (with example references); added `_request()` usage note in Organisation section
+
+---
+
 ## [1.3.0] — 2026-03-26
 
 ### Added
