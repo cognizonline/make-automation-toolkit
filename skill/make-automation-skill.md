@@ -770,14 +770,23 @@ client.delete_hook(hook_id)
 ```
 
 ### Webhook authentication (HMAC)
+
+> **SDK scope:** `create_hook()` creates the webhook endpoint. The HMAC secret is
+> configured in the Make UI (Webhook settings → Custom headers / IP restriction).
+> The code below shows how to **verify** an incoming HMAC signature in your
+> receiving endpoint — not how to configure Make to send one.
+
 ```python
-import hmac, hashlib, json
+import hmac, hashlib
 
-payload  = {"event": "order.created", "order_id": "12345"}
-secret   = "your-webhook-secret"
-sig      = hmac.new(secret.encode(), json.dumps(payload).encode(), hashlib.sha256).hexdigest()
+def verify_make_webhook(payload_bytes: bytes, signature: str, secret: str) -> bool:
+    expected = hmac.new(secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
 
-requests.post(webhook_url, json=payload, headers={"X-Signature": sig})
+# In your Flask/FastAPI handler:
+# sig = request.headers.get("X-Make-Signature", "")
+# if not verify_make_webhook(request.get_data(), sig, WEBHOOK_SECRET):
+#     abort(401)
 ```
 
 ---

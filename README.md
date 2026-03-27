@@ -34,7 +34,7 @@ as **code** — letting engineers:
 | **Scenario SDK** | Create, update, activate, run, and monitor scenarios programmatically |
 | **Blueprint system** | Version-controlled JSON blueprints for reproducible deployments |
 | **Data stores** | Full CRUD API for typed key-value storage with schema validation |
-| **Webhooks** | Create and manage inbound webhook triggers with HMAC auth |
+| **Webhooks** | Create and manage inbound webhook triggers (HMAC secret configured in Make UI) |
 | **AI Agents** | Deploy LLM agents that call your scenarios as tools |
 | **MCP integration** | Expose on-demand scenarios to Claude, Cursor, and any MCP client |
 | **Retry logic** | Exponential backoff with rate-limit awareness baked in |

@@ -10,7 +10,7 @@ import time
 from typing import Any, Dict, Iterator, List, Optional
 
 import requests
-from requests.exceptions import RequestException
+from requests.exceptions import HTTPError, RequestException
 
 
 class MakeClient:
@@ -43,24 +43,32 @@ class MakeClient:
     # Internal helpers
     # -------------------------------------------------------------------------
 
-    def _request(self, method: str, path: str, max_retries: int = 3, **kwargs) -> Dict:
+    def _request(self, method: str, path: str, max_retries: int = 3, timeout: int = 30, **kwargs) -> Dict:
         """Execute an API request with exponential-backoff retry on 429/5xx.
 
-        On 429 responses, reads the ``Retry-After`` header and sleeps for that
-        many seconds when present.  Falls back to ``2 ** attempt`` seconds when
-        the header is absent.
+        Retry policy:
+        - 429: sleep for ``Retry-After`` seconds (or ``2 ** attempt`` if absent), then retry.
+        - 5xx / network errors: exponential backoff, up to ``max_retries`` attempts.
+        - 4xx (except 429): raise immediately — these are caller errors, not transient failures.
+
+        Args:
+            timeout: Per-request timeout in seconds (default 30).
         """
         url = f"{self.base_url}{path}"
         for attempt in range(max_retries):
             try:
-                resp = self.session.request(method, url, **kwargs)
+                resp = self.session.request(method, url, timeout=timeout, **kwargs)
                 if resp.status_code == 429:
                     retry_after = resp.headers.get("Retry-After")
                     delay = int(retry_after) if retry_after is not None else 2 ** attempt
                     time.sleep(delay)
                     continue
-                resp.raise_for_status()
+                if 400 <= resp.status_code < 500:
+                    resp.raise_for_status()  # 4xx: raise immediately, do not retry
+                resp.raise_for_status()  # 5xx: raise, will be caught and retried below
                 return resp.json() if resp.content else {}
+            except HTTPError:
+                raise  # 4xx and unretried 5xx bubble up immediately
             except RequestException:
                 if attempt == max_retries - 1:
                     raise
@@ -245,8 +253,19 @@ class MakeClient:
         return self._request("GET", f"/data-stores/{store_id}/data", params=params).get("records", [])
 
     def paginate_records(self, store_id: int, page_size: int = 100) -> Iterator[Dict]:
-        """Yield every record in a data store, fetching pages as needed."""
-        yield from self.paginate(f"/data-stores/{store_id}/data", "records", page_size)
+        """Yield every record in a data store, fetching pages as needed.
+
+        Uses ``limit``/``offset`` query params (not ``pg[limit]``/``pg[offset]``)
+        because the data-store records endpoint has a different pagination scheme
+        from the scenario/scenario-list endpoints.
+        """
+        offset = 0
+        while True:
+            items = self.list_records(store_id, limit=page_size, offset=offset)
+            yield from items
+            if len(items) < page_size:
+                break
+            offset += page_size
 
     def update_record(self, store_id: int, key: str, data: Dict) -> Dict:
         payload = {"key": key, "data": data}
@@ -367,7 +386,6 @@ class MakeDeployer:
                 "scenario_id": int,
                 "structure_id": int,
                 "store_id": int,
-                "webhook": dict | None
             }
         """
         print(f"[1/3] Creating data structure '{store_name}'...")

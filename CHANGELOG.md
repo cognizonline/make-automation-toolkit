@@ -2,6 +2,19 @@
 
 All notable changes to this project follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [1.3.2] — 2026-03-27
+
+### Fixed
+- `src/make_client.py` — `_request()` now passes `timeout=30` to every request (no more indefinite hangs); 4xx errors now raise immediately without retry (only 429 and network errors are retried); imported `HTTPError` explicitly for the guard
+- `src/make_client.py` — `paginate_records()` was delegating to `paginate()` which sends `pg[limit]/pg[offset]`; data-store records endpoint requires plain `limit/offset`; fixed by delegating to `list_records()` which already uses the correct params
+- `src/make_client.py` — `deploy_with_datastore()` docstring claimed `"webhook": dict | None` return key that was never populated; removed phantom key
+- `pyproject.toml` — switched build backend from `setuptools.backends.legacy:build` to standard `setuptools.build_meta`; added `[tool.setuptools.packages.find]` with `include = ["src*"]` to make `pip install .` reliable
+- `requirements.txt` — removed dev-only packages (`responses`, `jsonschema`) which belong in `pyproject.toml [dev]` extras only; runtime install is now minimal
+- `README.md` — webhook feature description now accurately states HMAC is configured in Make UI, not via SDK
+- `skill/make-automation-skill.md` — HMAC section now clarifies SDK scope (create hook) vs Make UI scope (configure secret); shows `compare_digest` for timing-safe verification
+
+---
+
 ## [1.3.1] — 2026-03-27
 
 ### Fixed
