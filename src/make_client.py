@@ -499,7 +499,7 @@ class MakeDeployer:
                         "outputType": output_type,
                         "modelConfig": {
                             "recursionLimit": recursion_limit,
-                            "iterationsFromHistoryCount": str(history_count),
+                            "iterationsFromHistoryCount": str(history_count),  # API requires string, not int
                         },
                         "defaultModel": model,
                         "systemPrompt": system_prompt,

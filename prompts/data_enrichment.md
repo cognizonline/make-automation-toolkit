@@ -138,7 +138,7 @@ Run management:
 | `search_web` | `make-ai-web-search:generateAResponse` | Web search for missing field values |
 | `lookup_api` | `http:ActionSendData` | Call a specific API for high-quality field data |
 | `update_record` | `datastore:UpdateRecord` | Write enriched fields back to the store |
-| `send_report` | `google-email:sendAnEmail` | Enrichment run summary |
+| `send_report` | `google-email:ActionSendEmail` | Enrichment run summary |
 
 ---
 

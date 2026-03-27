@@ -83,6 +83,8 @@ ONBOARD_CUSTOMER_BLUEPRINT = {
             "metadata": {"designer": {"x": 0, "y": 0}},
         },
         # Module 2: Create/update CRM contact
+        # NOTE: HubSpot module names below are illustrative — verify the exact
+        # action names in your Make.com account before deploying.
         {
             "id": 2,
             "module": "hubspot:ActionCreateContact",

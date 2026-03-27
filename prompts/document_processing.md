@@ -123,7 +123,7 @@ Run management:
 | `extract_fields` | `make-ai-web-search:generateAResponse` | LLM extraction with structured JSON output |
 | `validate_record` | `datastore:ExistRecord` | Check for duplicates; can also validate via HTTP |
 | `route_document` | `http:ActionSendData` | POST to approval, processing, or review endpoint |
-| `notify` | `slack:ActionPostMessage` or `google-email:sendAnEmail` | Confirmation or flag-for-review alert |
+| `notify` | `slack:ActionPostMessage` or `google-email:ActionSendEmail` | Confirmation or flag-for-review alert |
 
 ---
 

@@ -111,7 +111,7 @@ Run management:
 | `search_web` | `make-ai-web-search:generateAResponse` | Web search with structured JSON output |
 | `fetch_page` | `http:ActionGetFile` | Retrieve full page content for deep reading |
 | `save_finding` | `datastore:AddRecord` | Persist findings with source URLs for audit trail |
-| `send_summary` | `google-email:sendAnEmail` | Deliver structured summary to recipient |
+| `send_summary` | `google-email:ActionSendEmail` | Deliver structured summary to recipient |
 
 ---
 

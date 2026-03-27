@@ -97,7 +97,7 @@ tools = [
         "flow": [
             {
                 "id": 20,
-                "module": "gmail:ActionSendEmail",
+                "module": "google-email:ActionSendEmail",
                 "version": 1,
                 "mapper": {
                     "connectionId": 0,          # replace with real connection ID

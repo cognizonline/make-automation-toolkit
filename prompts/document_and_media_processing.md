@@ -190,7 +190,7 @@ Run management:
 | `transcribe_audio` | `make-ai-extractors:transcribeAudio` | Full transcript with optional diarization (20 credits/min) |
 | `translate_audio` | `make-ai-extractors:translateAudio` | Audio to English transcript (20 credits/min, max 25 MB) |
 | `save_record` | `datastore:AddRecord` or `google-sheets:addRow` | Persist extracted record |
-| `notify` | `slack:ActionPostMessage` or `google-email:sendAnEmail` | Confirmation or flag-for-review alert |
+| `notify` | `slack:ActionPostMessage` or `google-email:ActionSendEmail` | Confirmation or flag-for-review alert |
 
 ---
 

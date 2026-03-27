@@ -113,7 +113,7 @@ Run management:
 | `get_customer` | `datastore:GetRecord` | Retrieve customer profile by ID or email |
 | `get_order` | `datastore:GetRecord` | Retrieve order record by order ID |
 | `update_ticket` | `datastore:UpdateRecord` | Log classification, notes, and outcome |
-| `send_response` | `google-email:sendAnEmail` | Send drafted response to customer |
+| `send_response` | `google-email:ActionSendEmail` | Send drafted response to customer |
 | `escalate` | `slack:ActionPostMessage` | Alert human agent channel with ticket details |
 
 ---

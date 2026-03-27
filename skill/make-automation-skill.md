@@ -313,7 +313,7 @@ tools = [
         "flow": [
             {
                 "id": 20,
-                "module": "google-email:sendAnEmail",
+                "module": "google-email:ActionSendEmail",
                 "version": 4,
                 "mapper": {
                     "to": "{{1.to}}",

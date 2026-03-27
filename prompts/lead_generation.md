@@ -167,7 +167,7 @@ Body:
 | `get_record` | `datastore:GetRecord` | Retrieve existing record for evidence comparison |
 | `add_record` | `datastore:AddRecord` | Write new qualified lead |
 | `update_record` | `datastore:UpdateRecord` | Enrich existing lead with better evidence |
-| `send_email` | `google-email:sendAnEmail` | End-of-run summary report |
+| `send_email` | `google-email:ActionSendEmail` | End-of-run summary report |
 
 ---
 

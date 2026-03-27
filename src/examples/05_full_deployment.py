@@ -62,7 +62,7 @@ welcome_blueprint = {
         {"id": 1, "module": "gateway:CustomWebhook", "version": 1,
          "parameters": {}, "mapper": {},
          "metadata": {"designer": {"x": 0, "y": 0}}},
-        {"id": 2, "module": "email:ActionSendEmail", "version": 1,
+        {"id": 2, "module": "google-email:ActionSendEmail", "version": 1,
          "mapper": {
              "to": "{{1.email}}",
              "subject": "Welcome to the platform, {{1.first_name}}!",
