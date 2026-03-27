@@ -328,3 +328,88 @@ def test_paginate_scenarios_multiple_pages():
     assert len(resp_lib.calls) == 2
     # Second call should have offset=2
     assert resp_lib.calls[1].request.params["pg[offset]"] == "2"
+
+
+# ---------------------------------------------------------------------------
+# _request: 4xx raises immediately (no retry)
+# ---------------------------------------------------------------------------
+
+
+@resp_lib.activate
+def test_request_raises_immediately_on_401(monkeypatch):
+    """401 Unauthorized must raise immediately — retrying it is pointless."""
+    sleeps = []
+    monkeypatch.setattr(time, "sleep", lambda s: sleeps.append(s))
+
+    resp_lib.add(resp_lib.GET, f"{BASE_URL}/scenarios", json={"message": "Unauthorized"}, status=401)
+
+    client = make_client()
+    with pytest.raises(Exception):
+        client.list_scenarios()
+
+    # Only one HTTP call should have been made — no retries
+    assert len(resp_lib.calls) == 1
+    assert len(sleeps) == 0
+
+
+@resp_lib.activate
+def test_request_raises_immediately_on_403(monkeypatch):
+    """403 Forbidden must raise immediately — retrying will not fix it."""
+    sleeps = []
+    monkeypatch.setattr(time, "sleep", lambda s: sleeps.append(s))
+
+    resp_lib.add(resp_lib.GET, f"{BASE_URL}/scenarios", json={"message": "Forbidden"}, status=403)
+
+    client = make_client()
+    with pytest.raises(Exception):
+        client.list_scenarios()
+
+    assert len(resp_lib.calls) == 1
+    assert len(sleeps) == 0
+
+
+# ---------------------------------------------------------------------------
+# _request: 5xx retries with backoff
+# ---------------------------------------------------------------------------
+
+
+@resp_lib.activate
+def test_request_retries_on_503_then_succeeds(monkeypatch):
+    """First call returns 503; second call returns 200 — should succeed."""
+    sleeps = []
+    monkeypatch.setattr(time, "sleep", lambda s: sleeps.append(s))
+
+    resp_lib.add(resp_lib.GET, f"{BASE_URL}/scenarios", json={}, status=503)
+    resp_lib.add(resp_lib.GET, f"{BASE_URL}/scenarios", json={"scenarios": [{"id": 5}]}, status=200)
+
+    client = make_client()
+    result = client.list_scenarios()
+    assert result == [{"id": 5}]
+    assert len(resp_lib.calls) == 2
+    assert len(sleeps) == 1  # slept once between attempts
+
+
+# ---------------------------------------------------------------------------
+# paginate_records: uses limit/offset (not pg[limit]/pg[offset])
+# ---------------------------------------------------------------------------
+
+
+@resp_lib.activate
+def test_paginate_records_uses_plain_limit_offset():
+    """Data-store records endpoint uses limit/offset, not pg[limit]/pg[offset]."""
+    resp_lib.add(
+        resp_lib.GET,
+        f"{BASE_URL}/data-stores/10/data",
+        json={"records": [{"key": "a"}, {"key": "b"}]},
+        status=200,
+    )
+
+    client = make_client()
+    results = list(client.paginate_records(store_id=10, page_size=100))
+    assert [r["key"] for r in results] == ["a", "b"]
+
+    params = resp_lib.calls[0].request.params
+    assert "limit" in params
+    assert "offset" in params
+    assert "pg[limit]" not in params
+    assert "pg[offset]" not in params

@@ -1,0 +1,18 @@
+# Normalise line endings to LF in the repo; check out as LF on all platforms
+* text=auto eol=lf
+
+# Explicitly LF for text files
+*.md    text eol=lf
+*.py    text eol=lf
+*.json  text eol=lf
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.txt   text eol=lf
+*.sh    text eol=lf
+
+# Binary — never touch line endings
+*.mp4   binary
+*.png   binary
+*.jpg   binary
+*.gif   binary

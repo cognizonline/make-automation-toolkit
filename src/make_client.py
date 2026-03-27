@@ -63,12 +63,16 @@ class MakeClient:
                     delay = int(retry_after) if retry_after is not None else 2 ** attempt
                     time.sleep(delay)
                     continue
-                if 400 <= resp.status_code < 500:
-                    resp.raise_for_status()  # 4xx: raise immediately, do not retry
-                resp.raise_for_status()  # 5xx: raise, will be caught and retried below
+                resp.raise_for_status()  # raises HTTPError on 4xx and 5xx
                 return resp.json() if resp.content else {}
-            except HTTPError:
-                raise  # 4xx and unretried 5xx bubble up immediately
+            except HTTPError as exc:
+                # 4xx errors are caller mistakes — raise immediately without retry.
+                # 5xx errors are transient server failures — retry with backoff.
+                if exc.response is not None and 400 <= exc.response.status_code < 500:
+                    raise
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(2 ** attempt)
             except RequestException:
                 if attempt == max_retries - 1:
                     raise
@@ -365,8 +369,10 @@ class MakeDeployer:
     High-level deployer for full-stack Make.com automation stacks.
 
     Combines client calls into reusable deployment workflows:
-    - deploy_with_datastore(): webhook → scenario + data store
-    - deploy_ai_agent_stack(): full AI Agent with tools + scenarios
+    - deploy_with_datastore(): scenario + typed data store (structure + store)
+    - deploy_mcp_tool(): on-demand scenario with typed I/O for MCP exposure
+    - deploy_ai_agent_stack(): standalone AI Agent with scenarios as tools
+    - deploy_scenario_agent(): scenario-embedded agent (ai-local-agent module)
     """
 
     def __init__(self, client: MakeClient):

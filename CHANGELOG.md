@@ -12,6 +12,12 @@ All notable changes to this project follow [Keep a Changelog](https://keepachang
 - `requirements.txt` — removed dev-only packages (`responses`, `jsonschema`) which belong in `pyproject.toml [dev]` extras only; runtime install is now minimal
 - `README.md` — webhook feature description now accurately states HMAC is configured in Make UI, not via SDK
 - `skill/make-automation-skill.md` — HMAC section now clarifies SDK scope (create hook) vs Make UI scope (configure secret); shows `compare_digest` for timing-safe verification
+- `src/make_client.py` — `_request()` 5xx retry regression fixed: previous fix accidentally re-raised 5xx HTTPErrors immediately; now discriminates in `except HTTPError` by checking `exc.response.status_code`; 5xx retries with backoff, 4xx raises immediately
+- `src/make_client.py` — `MakeDeployer` class docstring corrected to reflect actual methods
+- `pyproject.toml` — version bumped to 1.3.2; added `[tool.setuptools.package-data]` so `src/blueprints/*.json` (including `schema.json`) is included in wheel/sdist installs
+- `src/__init__.py` — version bumped to 1.3.2
+- `.gitattributes` — added to enforce LF line endings on all text files, preventing mojibake on Windows
+- `tests/test_make_client.py` — added 4 new tests: 401 no-retry, 403 no-retry, 503 retry-then-succeed, `paginate_records` uses `limit`/`offset` not `pg[...]`; suite now 19 tests, all passing
 
 ---
 
