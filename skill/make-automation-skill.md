@@ -313,7 +313,7 @@ tools = [
         "flow": [
             {
                 "id": 20,
-                "module": "google-email:ActionSendEmail",
+                "module": "google-email:sendAnEmail",
                 "version": 4,
                 "mapper": {
                     "to": "{{1.to}}",
@@ -356,6 +356,55 @@ scenario_id = deployer.deploy_scenario_agent(
 - `description`: the LLM reads this to decide when to call the tool — be specific about what it returns
 - `flow[]`: standard Make module objects, same structure as a scenario flow
 - Module IDs inside tools should be unique integers (e.g. 10, 20, 30 — not 1, 2, 3 which conflict with the agent module itself)
+- `"tools": []` sits at the **module root** level alongside `"mapper"` — not inside `"mapper"`
+
+#### Tool input mapping — two observed conventions
+
+**1. Make UI (module tool auto-generated):** uses `{{agent_module_id.param_name}}`
+
+When you add a module tool via the Make canvas, Make generates mapper references using the agent module's own `id`:
+```json
+"mapper": {
+  "key":    "{{94.key}}",
+  "upsert": "{{94.upsert}}",
+  "data": {
+    "risk_level":    "{{94.data.risk_level}}",
+    "input_summary": "{{94.data.input_summary}}"
+  }
+}
+```
+Where `94` is the `"id"` of the `ai-local-agent:RunLocalAIAgent` module in the scenario blueprint.
+
+**2. SDK / programmatic:** uses `{{parameters.param_name}}`
+
+The `make-automation-toolkit` SDK and the `src/blueprints/ai_local_agent.json` template use a `{{parameters.*}}` namespace:
+```json
+"mapper": {
+  "query": "{{parameters.query}}",
+  "to":    "{{parameters.to}}"
+}
+```
+Both forms are valid. Use `{{agent_id.*}}` when writing blueprints by hand or via MCP; use `{{parameters.*}}` when using `deploy_scenario_agent()` from the SDK.
+
+#### `aiHelp` annotations — guide the agent's parameter choices
+
+Inside each tool module's `metadata.restore.expect`, you can add `aiHelp` strings that the agent reads to understand what each parameter means:
+
+```json
+"restore": {
+  "expect": {
+    "key": {
+      "extra": { "aiHelp": "The record key — use the execution ID provided in the input." }
+    },
+    "upsert": {
+      "mode": "edit",
+      "extra": { "aiHelp": "Set to true to insert the record if it does not already exist." }
+    }
+  }
+}
+```
+
+Missing or vague `aiHelp` = agent passes wrong values or skips parameters entirely. Write `aiHelp` strings as if briefing a junior developer: what the field is, what value format is expected, and any default assumption.
 
 #### System prompt structure for scenario-embedded agents
 See `prompts/` for full templates. Every production agent prompt needs these six sections:
